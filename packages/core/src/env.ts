@@ -16,6 +16,10 @@ export const OPENAI_API_KEY = 'OPENAI_API_KEY';
 export const OPENAI_BASE_URL = 'OPENAI_BASE_URL';
 export const OPENAI_MAX_TOKENS = 'OPENAI_MAX_TOKENS';
 
+// Magic Service config
+export const MAGIC_SERVICE_URL = 'MAGIC_SERVICE_URL';
+export const MAGIC_SERVICE_API_KEY = 'MAGIC_SERVICE_API_KEY';
+
 export const MIDSCENE_CACHE = 'MIDSCENE_CACHE';
 export const MIDSCENE_USE_VLM_UI_TARS = 'MIDSCENE_USE_VLM_UI_TARS';
 export const MIDSCENE_USE_QWEN_VL = 'MIDSCENE_USE_QWEN_VL';
@@ -88,6 +92,9 @@ const allConfigFromEnv = () => {
       process.env[AZURE_OPENAI_API_VERSION] || undefined,
     [AZURE_OPENAI_DEPLOYMENT]:
       process.env[AZURE_OPENAI_DEPLOYMENT] || undefined,
+    // Magic Service config
+    [MAGIC_SERVICE_URL]: process.env[MAGIC_SERVICE_URL] || undefined,
+    [MAGIC_SERVICE_API_KEY]: process.env[MAGIC_SERVICE_API_KEY] || undefined,
   };
 };
 

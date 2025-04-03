@@ -17,6 +17,8 @@ import {
   AZURE_OPENAI_DEPLOYMENT,
   AZURE_OPENAI_ENDPOINT,
   AZURE_OPENAI_KEY,
+  MAGIC_SERVICE_URL,
+  MAGIC_SERVICE_API_KEY,
   MIDSCENE_API_TYPE,
   MIDSCENE_AZURE_OPENAI_INIT_CONFIG_JSON,
   MIDSCENE_AZURE_OPENAI_SCOPE,
@@ -243,40 +245,78 @@ export async function call(
   };
   if (style === 'openai') {
     debugCall(`sending request to ${model}`);
-    let result: Awaited<ReturnType<typeof completion.create>>;
-    try {
-      result = await completion.create({
-        model,
-        messages,
-        response_format: responseFormat,
-        ...commonConfig,
-      } as any);
-    } catch (e: any) {
-      const newError = new Error(
-        `failed to call AI model service: ${e.message}. Trouble shooting: https://midscenejs.com/model-provider.html`,
-        {
-          cause: e,
-        },
-      );
-      throw newError;
+    // 提取意图
+    const intent = messages.map(msg => {
+      if(typeof msg.content === 'string') {
+        return msg.content;
+      } else if(Array.isArray(msg.content)) {
+        return msg.content.map((c: { type: string; text?: string }) => {
+          if(c.type === 'text') return c.text;
+          return '';
+        }).join('\n');
+      }
+      return '';
+    }).join('\n');
+
+    // 提取图片base64
+    let image_url = '';
+    for(const msg of messages) {
+      if(Array.isArray(msg.content)) {
+        for(const c of msg.content) {
+          if(c.type === 'image_url' && c.image_url?.url) {
+            image_url = c.image_url.url;
+            break;
+          }
+        }
+      }
     }
 
-    debugProfileStats(
-      `model, ${model}, mode, ${vlLocateMode() || 'default'}, prompt-tokens, ${result.usage?.prompt_tokens || ''}, completion-tokens, ${result.usage?.completion_tokens || ''}, total-tokens, ${result.usage?.total_tokens || ''}, cost-ms, ${Date.now() - startTime}, requestId, ${result._request_id || ''}`,
-    );
+    const magicServiceUrl = getAIConfig(MAGIC_SERVICE_URL);
+    const magicServiceApiKey = getAIConfig(MAGIC_SERVICE_API_KEY);
 
-    debugProfileDetail('model usage detail: %s', JSON.stringify(result.usage));
+    if (!magicServiceUrl || !magicServiceApiKey) {
+      throw new Error(
+        'Magic Service configuration is missing. Please set MAGIC_SERVICE_URL and MAGIC_SERVICE_API_KEY environment variables.',
+      );
+    }
+
+    const result = await fetch(magicServiceUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": magicServiceApiKey
+      },
+      body: JSON.stringify({
+        params: {
+          intent,
+          image_url
+        }
+      })
+    });
+    
+    const data = await result.json();
+    
+    const magiResult = {
+      choices: [{
+        message: {
+          content: data.data.result.field_1
+        }
+      }]
+    };
+
+    debugProfileStats(
+      `model, ${model}, mode, ${vlLocateMode() || 'default'}, prompt-tokens, ${''}, completion-tokens, ${''}, total-tokens, ${''}, cost-ms, ${Date.now() - startTime}, requestId, ${''}`
+    );
 
     assert(
-      result.choices,
-      `invalid response from LLM service: ${JSON.stringify(result)}`,
+      magiResult.choices,
+      `invalid response from LLM service: ${JSON.stringify(magiResult)}`
     );
-    content = result.choices[0].message.content!;
 
+    content = magiResult.choices[0].message.content;
     debugCall(`response: ${content}`);
     assert(content, 'empty content');
-    usage = result.usage;
-    // console.log('headers', result.headers);
+    usage = undefined;
   } else if (style === 'anthropic') {
     const convertImageContent = (content: any) => {
       if (content.type === 'image_url') {
