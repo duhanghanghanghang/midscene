@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "dev": {
+      "dependsOn": ["^build"]
+    },
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "build:watch": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "cache": false
+    },
+    "e2e": {
+      "dependsOn": ["^build"]
+    },
+    "e2e:ui": {
+      "dependsOn": ["^build"]
+    }
+  },
+  "defaultBase": "main"
+}
